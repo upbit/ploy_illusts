@@ -1,6 +1,7 @@
 package mdb
 
 import (
+	"fmt"
 	"log"
 	"testing"
 
@@ -84,28 +85,35 @@ func Test_accepting_new_client_callback(t *testing.T) {
 		So(coll, ShouldNotBeNil)
 	})
 
-	illust := CIllust{}
-	err := coll.Find(bson.M{"id": CHECK_ILLUST_ID}).One(&illust)
-	Convey("Find by id should be successed", t, func() {
-		So(err, ShouldBeNil)
-	})
-	Convey("id should be equal", t, func() {
-		So(illust.Id, ShouldEqual, CHECK_ILLUST_ID)
-	})
-	Convey("title should NOT be empty", t, func() {
-		So(illust.Title, ShouldNotBeEmpty)
-	})
+	//illust := CIllust{}
+	iter := coll.Find(bson.M{"id": CHECK_ILLUST_ID}).Iter()
 
-	Convey("meta_single_page.original_image_url should NOT be empty", t, func() {
-		So(illust.MetaSinglePage.OriginalImageUrl, ShouldNotBeEmpty)
-	})
+	var _raw interface{}
+	for iter.Next(&_raw) {
+		fmt.Println(_raw)
+	}
 
-	Convey("user.name should NOT be empty", t, func() {
-		So(illust.User.Name, ShouldNotBeEmpty)
-	})
-	Convey("user.profile_image_urls.medium should NOT be empty", t, func() {
-		So(illust.User.ProfileImageUrls.Medium, ShouldNotBeEmpty)
-	})
+	// err := coll.Find(bson.M{"id": CHECK_ILLUST_ID}).One(&illust)
+	// Convey("Find by id should be successed", t, func() {
+	// 	So(err, ShouldBeNil)
+	// })
+	// Convey("id should be equal", t, func() {
+	// 	So(illust.Id, ShouldEqual, CHECK_ILLUST_ID)
+	// })
+	// Convey("title should NOT be empty", t, func() {
+	// 	So(illust.Title, ShouldNotBeEmpty)
+	// })
 
-	t.Log(illust)
+	// Convey("meta_single_page.original_image_url should NOT be empty", t, func() {
+	// 	So(illust.MetaSinglePage.OriginalImageUrl, ShouldNotBeEmpty)
+	// })
+
+	// Convey("user.name should NOT be empty", t, func() {
+	// 	So(illust.User.Name, ShouldNotBeEmpty)
+	// })
+	// Convey("user.profile_image_urls.medium should NOT be empty", t, func() {
+	// 	So(illust.User.ProfileImageUrls.Medium, ShouldNotBeEmpty)
+	// })
+
+	// t.Log(illust)
 }

@@ -1,13 +1,34 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/golang/glog"
+	"github.com/golang/groupcache"
 	"github.com/spf13/viper"
 )
+
+func getImage(ctx groupcache.Context, url string, dest groupcache.Sink) error {
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Referer", "https://app-api.pixiv.net/")
+	response, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+	dest.SetBytes(body)
+	return nil
+}
 
 func requiredField(key string) {
 	if value := viper.Get(key); value == nil {
@@ -28,6 +49,16 @@ func init() {
 }
 
 func main() {
+	// Server configs
+	addr := viper.GetString("server.listen")
+	peers_addrs := strings.Split(viper.GetString("server.peers"), ",")
+	log.Infof("Start server at %s", addr)
+
+	// groupcache
+	peers := groupcache.NewHTTPPool("http://" + addr)
+	peers.Set(peers_addrs...)
+	cache := groupcache.NewGroup("image", 8<<30, groupcache.GetterFunc(getImage))
+
 	r := gin.Default()
 
 	// Assets
@@ -42,25 +73,27 @@ func main() {
 		c.Redirect(301, "/stat")
 	})
 
-	// r.GET("/index", func(c *gin.Context) {
-	//     c.HTML(200, "index.tmpl", gin.H{
-	//         "ECharts入门示例 - 柱状图": "bar.html",
-	//     })
-	// })
-
 	r.GET("/stat", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "ok",
 		})
 	})
 
+	r.GET("/image", func(c *gin.Context) {
+		url := c.Query("url")
+		var data []byte
+		cache.Get(nil, url, groupcache.AllocatingByteSliceSink(&data))
+		fmt.Printf("Get %s return %d bytes\n", url, len(data))
+
+		c.Writer.Header().Set("Content-Type", "image/jpeg")
+		w := gin.ResponseWriter(c.Writer)
+		w.Write(data)
+	})
+
 	// Error handling
 	r.NoRoute(func(c *gin.Context) {
 		c.HTML(404, "not_found.tmpl", gin.H{})
 	})
-
-	addr := viper.GetString("server.listen")
-	log.Infof("Start server at %s", addr)
 
 	s := &http.Server{
 		Addr:           addr,
