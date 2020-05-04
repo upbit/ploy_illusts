@@ -1,64 +1,53 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net/http"
-	"strings"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	log "github.com/golang/glog"
-	"github.com/golang/groupcache"
 	"github.com/spf13/viper"
+	log "github.com/upbit/ploy_illusts/logger"
 )
 
-func getImage(ctx groupcache.Context, url string, dest groupcache.Sink) error {
-	client := &http.Client{}
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Referer", "https://app-api.pixiv.net/")
-	response, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
-	dest.SetBytes(body)
-	return nil
-}
+// func getImage(ctx groupcache.Context, url string, dest groupcache.Sink) error {
+// 	client := &http.Client{}
+// 	req, _ := http.NewRequest("GET", url, nil)
+// 	req.Header.Set("Referer", "https://app-api.pixiv.net/")
+// 	response, err := client.Do(req)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer response.Body.Close()
+// 	body, err := ioutil.ReadAll(response.Body)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	dest.SetBytes(body)
+// 	return nil
+// }
 
 func requiredField(key string) {
 	if value := viper.Get(key); value == nil {
-		log.Fatalf("Required field %s is not configured!", key)
+		log.Errorf("Required field %s is not configured!", key)
+		os.Exit(1)
 	}
 }
 
-func init() {
+func initConfigs() {
 	viper.SetConfigName("config")
-	viper.SetConfigType("json")
+	viper.SetConfigType("yml")
 	viper.AddConfigPath("./config")
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {             // Handle errors reading the config file
-		log.Fatalf("Fatal error config file: %s", err)
+		log.Errorf("Fatal error config file: %s", err)
+		os.Exit(1)
 	}
 
 	requiredField("server.listen")
 }
 
-func main() {
-	// Server configs
-	addr := viper.GetString("server.listen")
-	peers_addrs := strings.Split(viper.GetString("server.peers"), ",")
-	log.Infof("Start server at %s", addr)
-
-	// groupcache
-	peers := groupcache.NewHTTPPool("http://" + addr)
-	peers.Set(peers_addrs...)
-	cache := groupcache.NewGroup("image", 8<<30, groupcache.GetterFunc(getImage))
-
+func initHTTPServer() *gin.Engine {
 	r := gin.Default()
 
 	// Assets
@@ -79,28 +68,38 @@ func main() {
 		})
 	})
 
-	r.GET("/image", func(c *gin.Context) {
-		url := c.Query("url")
-		var data []byte
-		cache.Get(nil, url, groupcache.AllocatingByteSliceSink(&data))
-		fmt.Printf("Get %s return %d bytes\n", url, len(data))
+	// r.GET("/image", func(c *gin.Context) {
+	// 	url := c.Query("url")
+	// 	var data []byte
+	// 	cache.Get(nil, url, groupcache.AllocatingByteSliceSink(&data))
+	// 	fmt.Printf("Get %s return %d bytes\n", url, len(data))
 
-		c.Writer.Header().Set("Content-Type", "image/jpeg")
-		w := gin.ResponseWriter(c.Writer)
-		w.Write(data)
-	})
+	// 	c.Writer.Header().Set("Content-Type", "image/jpeg")
+	// 	w := gin.ResponseWriter(c.Writer)
+	// 	w.Write(data)
+	// })
 
 	// Error handling
 	r.NoRoute(func(c *gin.Context) {
 		c.HTML(404, "not_found.tmpl", gin.H{})
 	})
 
+	return r
+}
+
+func main() {
+	initConfigs()
+
+	// Server configs
+	addr := viper.GetString("server.listen")
+	log.Infof("Start server at %s", addr)
+
 	s := &http.Server{
 		Addr:           addr,
-		Handler:        r,
+		Handler:        initHTTPServer(),
 		ReadTimeout:    2 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	s.ListenAndServe()
+	log.Errorf("%v", s.ListenAndServe())
 }
