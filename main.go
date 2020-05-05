@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"github.com/upbit/ploy_illusts/controllers"
 	log "github.com/upbit/ploy_illusts/logger"
 	"github.com/upbit/ploy_illusts/model"
 )
@@ -45,8 +46,8 @@ func initHTTPServer() *gin.Engine {
 			c.JSON(200, gin.H{"status": "ok"})
 		})
 
-		// api.GET("/illusts", illusts.GetAllIllusts)
-		// api.GET("/illusts/:id", illusts.GetIllust)
+		api.GET("/illusts", controllers.GetIllusts)
+		api.GET("/illusts/:id", controllers.GetIllust)
 	}
 
 	r.GET("/download", func(c *gin.Context) {
