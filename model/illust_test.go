@@ -29,6 +29,9 @@ func TestGetIllust(t *testing.T) {
 
 		So(illust.ID, ShouldEqual, 5663)
 		So(illust.Type, ShouldEqual, "illust")
+
+		So(illust.OriginalURL, ShouldEqual, "http://192.168.88.2:23000/data/illusts/5663_p0.jpg")
+		So(illust.SquareURL, ShouldEqual, "http://192.168.88.2:23000/data/squares/5663_p0_square1200.jpg")
 	})
 }
 

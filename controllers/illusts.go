@@ -36,7 +36,7 @@ func GetIllust(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"illust": illust})
+	c.JSON(200, illust)
 }
 
 // GetIllusts Endpoint
@@ -76,9 +76,8 @@ func GetIllusts(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"page":    page,
-		"size":    size,
-		"sort":    sort,
-		"illusts": illusts,
+		"page": page,
+		"size": size,
+		"data": illusts,
 	})
 }

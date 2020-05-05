@@ -1,8 +1,10 @@
 package model
 
 import (
+	"strings"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/upbit/ploy_illusts/conn"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -40,6 +42,10 @@ type Illust struct {
 	UserID         int `bson:"user_id" json:"user_id"`
 	TotalComments  int `bson:"total_comments" json:"total_comments"`
 	CreateDateTs   int `bson:"create_date_ts" json:"create_date_ts"`
+
+	// 生成字段，替换成本地地址方便展示
+	OriginalURL string `json:"original_url"`
+	SquareURL   string `json:"square_url"`
 }
 
 // User User
@@ -52,11 +58,34 @@ type User struct {
 	} `bson:"profile_image_urls" json:"profile_image_urls"`
 }
 
+// 修改为本地 URL
+func patchIllust(illust *Illust) {
+	uri := viper.GetString("server.uri")
+
+	// OriginalURL
+	{
+		url := illust.MetaSinglePage.OriginalImageURL
+		if url == "" {
+			url = illust.ImageUrls.Large
+		}
+		data := strings.Split(url, "/")
+		illust.OriginalURL = uri + "/data/illusts/" + data[len(data)-1]
+	}
+
+	// SquareURL
+	{
+		url := illust.ImageUrls.SquareMedium
+		data := strings.Split(url, "/")
+		illust.SquareURL = uri + "/data/squares/" + data[len(data)-1]
+	}
+}
+
 // GetIllust get one illust by ID
 func GetIllust(illustID int) (*Illust, error) {
 	mdb := conn.GetMongoDB()
 	illust := new(Illust)
 	err := mdb.C(illustCollection).Find(bson.M{"_id": &illustID}).One(illust)
+	patchIllust(illust)
 	return illust, err
 }
 
@@ -66,5 +95,9 @@ func GetIllusts(page, size int, sortFields []string) ([]*Illust, error) {
 	illusts := make([]*Illust, 0, size)
 	err := mdb.C(illustCollection).Find(bson.M{}).Sort(sortFields...).
 		Skip(page * size).Limit(size).All(&illusts)
+	for i := range illusts {
+		illust := illusts[i]
+		patchIllust(illust)
+	}
 	return illusts, err
 }
