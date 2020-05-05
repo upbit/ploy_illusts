@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"time"
@@ -8,24 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	log "github.com/upbit/ploy_illusts/logger"
+	"github.com/upbit/ploy_illusts/model"
 )
-
-// func getImage(ctx groupcache.Context, url string, dest groupcache.Sink) error {
-// 	client := &http.Client{}
-// 	req, _ := http.NewRequest("GET", url, nil)
-// 	req.Header.Set("Referer", "https://app-api.pixiv.net/")
-// 	response, err := client.Do(req)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer response.Body.Close()
-// 	body, err := ioutil.ReadAll(response.Body)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	dest.SetBytes(body)
-// 	return nil
-// }
 
 func requiredField(key string) {
 	if value := viper.Get(key); value == nil {
@@ -50,38 +35,38 @@ func initConfigs() {
 func initHTTPServer() *gin.Engine {
 	r := gin.Default()
 
+	r.GET("/", func(c *gin.Context) {
+		c.Redirect(302, "/api/stat")
+	})
+
+	api := r.Group("/api")
+	{
+		api.GET("/stat", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "ok"})
+		})
+
+		// api.GET("/illusts", illusts.GetAllIllusts)
+		// api.GET("/illusts/:id", illusts.GetIllust)
+	}
+
+	r.GET("/download", func(c *gin.Context) {
+		url := c.Query("url")
+		buffer, contentType, err := model.GetPixivImage(context.Background(), url)
+		if err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+		} else {
+			c.Data(200, contentType, buffer)
+		}
+	})
+
 	// Assets
-	r.Static("/static", "./assets/static")
+	r.Static("/data", "./data")
 	r.StaticFile("/favicon.ico", "./assets/favicon.ico")
 	r.StaticFile("/robots.txt", "./assets/robots.txt")
-	// Templates
-	r.LoadHTMLGlob("templates/*")
-
-	// Routers
-	r.GET("/", func(c *gin.Context) {
-		c.Redirect(301, "/stat")
-	})
-
-	r.GET("/stat", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status": "ok",
-		})
-	})
-
-	// r.GET("/image", func(c *gin.Context) {
-	// 	url := c.Query("url")
-	// 	var data []byte
-	// 	cache.Get(nil, url, groupcache.AllocatingByteSliceSink(&data))
-	// 	fmt.Printf("Get %s return %d bytes\n", url, len(data))
-
-	// 	c.Writer.Header().Set("Content-Type", "image/jpeg")
-	// 	w := gin.ResponseWriter(c.Writer)
-	// 	w.Write(data)
-	// })
 
 	// Error handling
 	r.NoRoute(func(c *gin.Context) {
-		c.HTML(404, "not_found.tmpl", gin.H{})
+		c.AbortWithStatus(http.StatusNotFound)
 	})
 
 	return r

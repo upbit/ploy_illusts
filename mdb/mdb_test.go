@@ -5,9 +5,10 @@ import (
 	"log"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2/bson"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
@@ -63,9 +64,9 @@ type CIllust struct {
 	TotalBookmarks int32           "bson:`total_bookmarks"
 }
 
-func init() {
-	viper.SetConfigName("config_test")
-	viper.SetConfigType("json")
+func TestMain(t *testing.T) {
+	viper.SetConfigName("config")
+	viper.SetConfigType("yml")
 	viper.AddConfigPath("../config")
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {             // Handle errors reading the config file
